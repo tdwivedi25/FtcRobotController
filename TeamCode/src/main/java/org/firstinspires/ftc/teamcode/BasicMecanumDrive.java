@@ -8,7 +8,6 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 @TeleOp(name = "Basic: Mecanum Drive", group = "Linear OpMode")
 public class BasicMecanumDrive extends LinearOpMode {
 
-    // A timer object that tracks how long the OpMode has been running
     private ElapsedTime runtime = new ElapsedTime();
 
     // Declare 4 motors
@@ -20,59 +19,57 @@ public class BasicMecanumDrive extends LinearOpMode {
     @Override
     public void runOpMode() {
 
-        // Map the motor variables to the names used in the configuration on the Control Hub
+        // Initialize motors
         frontLeft  = hardwareMap.get(DcMotor.class, "front_left_drive");
         frontRight = hardwareMap.get(DcMotor.class, "front_right_drive");
         backLeft   = hardwareMap.get(DcMotor.class, "back_left_drive");
         backRight  = hardwareMap.get(DcMotor.class, "back_right_drive");
 
-        // Reverse the direction of the left side so that forward on the stick means forward on the robot
-        frontLeft.setDirection(DcMotor.Direction.REVERSE);
+        frontLeft.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        frontRight.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        backLeft.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        backRight.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        // Set motor directions so forward is forward
+        frontLeft.setDirection(DcMotor.Direction.FORWARD);
         backLeft.setDirection(DcMotor.Direction.REVERSE);
-        frontRight.setDirection(DcMotor.Direction.FORWARD);
+        frontRight.setDirection(DcMotor.Direction.REVERSE);
         backRight.setDirection(DcMotor.Direction.FORWARD);
 
-        // Show initialization on Driver Station
         telemetry.addData("Status", "Initialized");
         telemetry.update();
 
-        // Wait for the driver to press PLAY on the Driver Station
         waitForStart();
         runtime.reset();
 
-        // Run until STOP is pressed
         while (opModeIsActive()) {
 
-            // Read the joystick values
-            double y = -gamepad1.left_stick_y;  // Forward/backward
-            double x =  gamepad1.left_stick_x;  // Left/right strafing
-            double rx = gamepad1.right_stick_x; // Rotation (turning)
+            // Joystick controls:
+            double y  = -gamepad1.left_stick_y;  // Forward/backward (invert for natural control)
+            double x  = gamepad1.left_stick_x;   // Strafe left/right
+            double rx = gamepad1.right_stick_x;  // Rotation
 
-            // Calculate motor powers using the mecanum drive equations
-            double frontLeftPower  = y + x + rx;
-            double backLeftPower   = y - x + rx;
+            // Mecanum drive calculations
+            double frontLeftPower  = y - x + rx;
+            double backLeftPower   = y + x - rx;
             double frontRightPower = y - x - rx;
-            double backRightPower  = y + x - rx;
+            double backRightPower  = y + x + rx;
 
-            // Normalize the powers so no motor exceeds 1.0
-            double max = Math.max(Math.abs(frontLeftPower), Math.abs(frontRightPower));
-            max = Math.max(max, Math.abs(backLeftPower));
-            max = Math.max(max, Math.abs(backRightPower));
+            // Normalize powers
+            double max = Math.max(1.0, Math.max(Math.abs(frontLeftPower),
+                    Math.max(Math.abs(frontRightPower),
+                            Math.max(Math.abs(backLeftPower), Math.abs(backRightPower)))));
 
-            if (max > 1.0) {
-                frontLeftPower  /= max;
-                backLeftPower   /= max;
-                frontRightPower /= max;
-                backRightPower  /= max;
-            }
+            frontLeftPower  /= max;
+            backLeftPower   /= max;
+            frontRightPower /= max;
+            backRightPower  /= max;
 
-            // Apply power to each motor
+            // Apply power
             frontLeft.setPower(frontLeftPower);
             backLeft.setPower(backLeftPower);
             frontRight.setPower(frontRightPower);
             backRight.setPower(backRightPower);
 
-            // Send telemetry data to the Driver Station
             telemetry.addData("Status", "Run Time: " + runtime.toString());
             telemetry.addData("Front Motors", "left (%.2f), right (%.2f)", frontLeftPower, frontRightPower);
             telemetry.addData("Back Motors", "left (%.2f), right (%.2f)", backLeftPower, backRightPower);
